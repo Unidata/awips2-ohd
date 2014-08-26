@@ -6,6 +6,11 @@
 
    <bean id="hydrodualpolGenerator" class="gov.noaa.nws.ohd.edex.plugin.hydrodualpol.HydroDualPolGenerator"/>
        
+    <bean factory-bean="contextManager" factory-method="registerContextStateProcessor">
+        <constructor-arg ref="hydrodualpol-camel" />
+        <constructor-arg ref="hydrodualpolGenerator" />
+    </bean>    
+       
     <bean factory-bean="cpgSrvDispatcher" factory-method="register">
 		<constructor-arg ref="hydrodualpolGenerator"/>
 	</bean>
