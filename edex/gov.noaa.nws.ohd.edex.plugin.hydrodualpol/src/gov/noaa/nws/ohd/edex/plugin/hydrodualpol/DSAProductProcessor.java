@@ -29,7 +29,7 @@ import com.raytheon.uf.edex.database.dao.DaoConfig;
  * Date         Ticket#     Engineer    Description
  * ------------ ----------  ----------- --------------------------
  * July 2013 DCS 167    P. Tilles   Initial Creation
- * 
+ * August 2015 DR 17558  JtDeng HPE/DHR stacktrace and housekeep
  * </pre>
  * 
  * 
@@ -93,15 +93,14 @@ public class DSAProductProcessor {
 	private void processNullProduct(RadarRecord record, DSAHeaderData headerData)
 	{
 		
-		statusHandler.handle(Priority.INFO, "\n" +
-				"DSA product is a null product" + "\n" 
-				 + " radar id  = "  + headerData.getRadarId()
-				 + " obsTime  = "   + headerData.getObsTime()
-				 + " volumeCoveragePattern = " + headerData.getVolumeCoveragePattern()
-				 + " operationalMode = " + headerData.getOperationalMode()
-				 + " biasValue = "  + headerData.getBiasValue()
-				 + " nullProductFlag = " + headerData.getNullProductFlag()
-				 		);	
+		statusHandler.handle(Priority.INFO,
+		        "DSA product is a null product" + "\n" 
+		         + " radar id  = "  + headerData.getRadarId()
+		         + " obsTime  = "   + headerData.getObsTime()
+		         + " volumeCoveragePattern = " + headerData.getVolumeCoveragePattern()
+		         + " operationalMode = " + headerData.getOperationalMode()
+		         + " biasValue = "  + headerData.getBiasValue()
+		         + " nullProductFlag = " + headerData.getNullProductFlag());
 		
 		processNullProductString(record);
 		
@@ -421,7 +420,7 @@ public class DSAProductProcessor {
 		Float longstLag = Float.valueOf(stringArray4[6]);
 		
 		// write record to DSAAdapt table
-		statusHandler.handle(Priority.INFO, " Before write to DSAAdapt table");
+		/*statusHandler.handle(Priority.INFO, " Before write to DSAAdapt table");*/
 		
 		writeToDSAAdapt(radid, obstime,
 				        numOfAdap, defaultMLDepth, mlOverideFlag,
@@ -435,7 +434,8 @@ public class DSAProductProcessor {
 				        maxInterpTime, maxHourlyAcc, timeBias,
 				        numGRPairs, resetBias, longstLag);
 		
-		statusHandler.handle(Priority.INFO, " After write to DSAAdapt table");
+		statusHandler.handle(Priority.INFO, 
+		        "In routine processDSAAdaptParameter - finish to write to DSAAdapt table");		
 	}
 	
 	//---------------------------------------------------------------------------
@@ -710,10 +710,10 @@ public class DSAProductProcessor {
 				HydroTimeUtility.JulianDateConvertToMDY(prodDate),prodHour, prodMin);
 		headerData.setFileName(fileName);
 		
-		statusHandler.handle(Priority.INFO,
-				"Thread id = " + Thread.currentThread().getId());
+		/*statusHandler.handle(Priority.INFO,
+				"Thread id = " + Thread.currentThread().getId()); */
 		
-		statusHandler.handle(Priority.INFO, "\n" +
+		statusHandler.handle(Priority.INFO,
 				"DSA product: uri = " + headerData.getUri());
 
 	}
@@ -773,8 +773,8 @@ public class DSAProductProcessor {
 				}
 			}	
 			
-			statusHandler.handle(Priority.INFO, "\n" +
-					"DSA product: max value = "  + max);
+		/*	statusHandler.handle(Priority.INFO, "\n" +
+					"DSA product: max value = "  + max); */
 					 
 
 		} catch (Exception e) {
@@ -801,8 +801,8 @@ public class DSAProductProcessor {
 	
 	private void writeToDSARadarTable(DSAHeaderData d)
 	{
-		statusHandler.handle(Priority.INFO, "\n" +
-		"In routine writeToDSARadarTable - before write to DSARadar table");
+	/*	statusHandler.handle(Priority.INFO, "\n" +
+		"In routine writeToDSARadarTable - before write to DSARadar table");*/
 		
 		writeToDSARadarTable(d.getRadarId(), d.getObsTime(),
 				d.volumeCoveragePattern, d.operationalMode,
@@ -813,8 +813,8 @@ public class DSAProductProcessor {
 				d.getBiasValue(), d.getNullProductFlag(),
 				d.getFileName());
 		
-		statusHandler.handle(Priority.INFO, "\n" +
-		"In routine writeToDSARadarTable - after write to DSARadar table");
+		statusHandler.handle(Priority.INFO, 
+		"In routine writeToDSARadarTable - finish to write to DSARadar table");
 
 	}
 	
