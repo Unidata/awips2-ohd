@@ -32,7 +32,7 @@ import com.raytheon.uf.edex.database.query.DatabaseQuery;
  * Date         Ticket#     Engineer    Description
  * ------------ ----------  ----------- --------------------------
  * May 2013 DCS 167    P. Tilles   Initial Creation
- * August 2015 DR 17558   JtDeng HPE/DHR stacktrace and housekeep
+ * 
  * </pre>
  * 
  * 
@@ -40,8 +40,12 @@ import com.raytheon.uf.edex.database.query.DatabaseQuery;
  * 
  */
 
+
 public class DAAProductProcessor
 {
+	
+	
+	
 	private final static byte NO_DATA_FLAG = 0;
 	private final static float DECODED_DAA_NO_DATA_FLAG = -98.0f;
 
@@ -57,7 +61,9 @@ public class DAAProductProcessor
 	// ---------------------------------------------------------------------
 	public DAAProductProcessor() 
 	{
-		this.statusHandler = null;		
+		this.statusHandler = null;
+		
+	//	readAppsDefaults();
 		
 	}
 	
@@ -162,7 +168,8 @@ public class DAAProductProcessor
 		return;
 	}
 	
-	//-----------------------------------------------------------------
+	
+	// ---------------------------------------------------------------------
 	private void processNullProduct(RadarRecord record, DAAHeaderData headerData)
 	{
 		
@@ -170,10 +177,10 @@ public class DAAProductProcessor
 		String fileName = "xxxxxxxxxxxxxxxx";
 		boolean withinTOHWindow = false;
 		
-	    /*statusHandler.handle(Priority.INFO,
-				"Thread id = " + Thread.currentThread().getId());*/
-		
 		statusHandler.handle(Priority.INFO,
+				"Thread id = " + Thread.currentThread().getId());
+		
+		statusHandler.handle(Priority.INFO, "\n" +
 				"DAA product: uri = " + headerData.getUri());
 
 		statusHandler.handle(Priority.INFO, "\n" +
@@ -197,7 +204,7 @@ public class DAAProductProcessor
 
 		if(!withinTOHWindow)
 		{
-			statusHandler.handle(Priority.INFO, "DAA product is not TOH" );
+			statusHandler.handle(Priority.INFO, " DAA product is not TOH" );
 		}
 		else
 		{
@@ -222,8 +229,8 @@ public class DAAProductProcessor
 				long millisSincePrecipDetected = obsTimeInMillis - nullProductTimeInMillis;
 
 				int minutesSincePrecipDetected = (short) (millisSincePrecipDetected/60000);
-				
-				statusHandler.handle(Priority.INFO, "minutesSincePrecipDetected = "  + minutesSincePrecipDetected);
+				statusHandler.handle(Priority.INFO, "\n" +
+						"  minutesSincePrecipDetected = "  + minutesSincePrecipDetected);
 				headerData.setCoverageDur(minutesSincePrecipDetected);
 
                 /*
@@ -298,7 +305,7 @@ public class DAAProductProcessor
 						if(headerData.getNullProductFlag() == 5 && !nullProductText.matches(".*RPG.*"))
 						{
 							dateTimeString = nullProductText.substring(32,nullProductText.length()-1);
-							statusHandler.handle(Priority.INFO, "date/time = " + dateTimeString);
+							statusHandler.handle(Priority.INFO, " date/time = " + dateTimeString);
 							
 						} //end if (!nullProductText.matches("RPG"))
 					} //end if (packet instanceof TextSymbolPacket) 
@@ -367,10 +374,10 @@ public class DAAProductProcessor
 		String obsTime = headerData.getObsTime();
 		short minOff = headerData.getMinutesOffTopOfHour();
 		
-		/*statusHandler.handle(Priority.INFO,
-				"Thread id = " + Thread.currentThread().getId()); */
-		
 		statusHandler.handle(Priority.INFO,
+				"Thread id = " + Thread.currentThread().getId());
+		
+		statusHandler.handle(Priority.INFO, "\n" +
 				"DAA product: uri = " + headerData.getUri());
 
 		statusHandler.handle(Priority.INFO, "\n" +
@@ -401,7 +408,7 @@ public class DAAProductProcessor
 
 		if(!withinTOHWindow)
 		{
-			statusHandler.handle(Priority.INFO, "DAA product is not within window around TOH" );
+			statusHandler.handle(Priority.INFO, " DAA product is not within window around TOH" );
 		}
 		else
 		{
@@ -418,7 +425,7 @@ public class DAAProductProcessor
 			
 			if(!closerToTOH)
 			{
-				statusHandler.handle(Priority.INFO, "DAA product closer to TOH already processed -- current product not processed" );
+				statusHandler.handle(Priority.INFO, " DAA product closer to TOH already processed -- current product not processed" );
 			}
 			else
 			{
@@ -632,15 +639,15 @@ public class DAAProductProcessor
 	// ---------------------------------------------------------------------
 	private void writeToDAARadarTable(float maxValueFromData, String fileName, DAAHeaderData d)
 	{
-		/*statusHandler.handle(Priority.INFO, "\n" +
-		"In routine writeToDAARadarTable - before write to DAAradar table");  */
+		statusHandler.handle(Priority.INFO, "\n" +
+		"In routine writeToDAARadarTable - before write to DAAradar table");
 	
 		writeToDAARadarTable(d.getRadarId(), d.getObsTime(), d.getMinutesOffTopOfHour(),
 				d.getMaxValh(), maxValueFromData, d.getBiasValue(), d.getProductGenerationTime(),
 				d.getNullProductFlag(), d.getCoverageDur(), fileName);
 		
-		statusHandler.handle(Priority.INFO,
-		"In routine writeToDAARadarTable - finish to write to DAAradar table");
+		statusHandler.handle(Priority.INFO, "\n" +
+		"In routine writeToDAARadarTable - after write to DAAradar table");
 
 	}
 	// ---------------------------------------------------------------------

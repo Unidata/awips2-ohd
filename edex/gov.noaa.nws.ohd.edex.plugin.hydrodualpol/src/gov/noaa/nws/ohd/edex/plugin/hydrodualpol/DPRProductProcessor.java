@@ -23,13 +23,15 @@ import com.raytheon.uf.edex.database.dao.DaoConfig;
  * Date         Ticket#     Engineer    Description
  * ------------ ----------  ----------- --------------------------
  * May 2013 DCS 167    P. Tilles   Initial Creation
- * August 2015 DR 17558   JtDeng HPE/DHR stacktrace and housekeep
+ * 
  * </pre>
  * 
  * 
  * @author Paul Tilles
  * 
  */
+
+
 
 public class DPRProductProcessor
 {
@@ -153,7 +155,7 @@ public class DPRProductProcessor
 		//  offset = in A1: HW 33,34 . In A2: thresholds - 2,3
 		float scale = HydroNumericUtility.convertShortsToFloat(record.getThreshold(0), record.getThreshold(1));		
 		headerData.setScale(scale);
-		
+				
 		float offset = HydroNumericUtility.convertShortsToFloat(record.getThreshold(2), record.getThreshold(3));
 		headerData.setOffSet(offset);
 		
@@ -170,10 +172,10 @@ public class DPRProductProcessor
 				HydroTimeUtility.JulianDateConvertToMDY(prodDate),prodHour, prodMin);
 		headerData.setFileName(fileName);
 		
-	/*	statusHandler.handle(Priority.INFO,
-				"Thread id = " + Thread.currentThread().getId());*/
-		
 		statusHandler.handle(Priority.INFO,
+				"Thread id = " + Thread.currentThread().getId());
+		
+		statusHandler.handle(Priority.INFO, "\n" +
 				"DPR product: uri = " + headerData.getUri());
 
 		statusHandler.handle(Priority.INFO, "\n" +
@@ -215,13 +217,13 @@ public class DPRProductProcessor
 			float lat = record.getLatitude();
 			float lon = record.getLongitude();
 			
-	/*		statusHandler.handle(Priority.INFO, "\n"
+			statusHandler.handle(Priority.INFO, "\n"
 					+ "DPR product:"
 					+ " numbin = " + numRangeBins
 					+ " numradial = " + numRadials
 					+ " lat = " + lat
 					+ " lon = " + lon
-			); */
+			);
 			
 			// transform polar to HRAP grid
 			
@@ -327,8 +329,8 @@ public class DPRProductProcessor
 	// ---------------------------------------------------------------------
 	private void writeToDPRRadarTable(DPRHeaderData d)
 	{
-	/*	statusHandler.handle(Priority.INFO, "\n" +
-		"In routine writeToDPRRadarTable - before write to DPRradar table"); */
+		statusHandler.handle(Priority.INFO, "\n" +
+		"In routine writeToDPRRadarTable - before write to DPRradar table");
 
 		writeToDPRRadarTable(d.getRadarId(), d.getObsTime(),
 				d.volumeCoveragePattern, d.operationalMode,
@@ -337,8 +339,8 @@ public class DPRProductProcessor
 				d.getBiasValue(), d.precipDetectedFlag,
 				d.getFileName());
 		
-		statusHandler.handle(Priority.INFO,
-		"In routine writeToDPRRadarTable - finish to write to DPRradar table");
+		statusHandler.handle(Priority.INFO, "\n" +
+		"In routine writeToDPRRadarTable - after write to DPRradar table");
 
 	}
 	
@@ -434,8 +436,8 @@ public class DPRProductProcessor
 				}
 			}	
 			
-		/*	statusHandler.handle(Priority.INFO, "\n" +
-					"DPR product: max value = "  + max); */
+			statusHandler.handle(Priority.INFO, "\n" +
+					"DPR product: max value = "  + max);
 					 
 
 		} catch (Exception e) {

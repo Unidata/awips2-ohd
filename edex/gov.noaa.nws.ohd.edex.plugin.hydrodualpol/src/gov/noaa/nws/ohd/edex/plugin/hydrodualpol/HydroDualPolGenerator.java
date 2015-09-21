@@ -19,8 +19,6 @@ import com.raytheon.uf.common.status.IUFStatusHandler;
 import com.raytheon.uf.common.status.UFStatus;
 import com.raytheon.uf.common.status.UFStatus.Priority;
 import com.raytheon.uf.edex.cpgsrv.CompositeProductGenerator;
-import com.raytheon.uf.edex.database.dao.CoreDao;
-import com.raytheon.uf.edex.database.dao.DaoConfig;
 
 /**
  *
@@ -32,7 +30,6 @@ import com.raytheon.uf.edex.database.dao.DaoConfig;
  * Date         Ticket#    Engineer    Description
  * ------------ ---------- ----------- --------------------------
  * May 13, 2013            jtDeng     Initial creation
- * August 2015 DR 17558    JtDeng HPE/DHR stacktrace and housekeep
  * 
  * This HydroDualPolGenerator creates data URI filters for dual pol radar products
  * DSA/DPR/DAA, it retrieves these radar records from "metadata" database and HDF5 files
@@ -86,55 +83,23 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
         int radarCount = 0;
         while (iter.hasNext()) {
             String icao = iter.next();
-            /* retrieve the radar_id with radar_use as T in radarLoc table */
-            boolean validRadarId = checkRadarIdinUse (icao);
-            if (validRadarId) {
-                try {
-                    tmp.add(new HydroDualPolURIFilter(icao, HydroDualPolURIFilter.daa));
-                    tmp.add(new HydroDualPolURIFilter(icao, HydroDualPolURIFilter.dpr));
-                    tmp.add(new HydroDualPolURIFilter(icao, HydroDualPolURIFilter.dsa));
+            try {
+                tmp.add(new HydroDualPolURIFilter(icao, HydroDualPolURIFilter.daa));
+                tmp.add(new HydroDualPolURIFilter(icao, HydroDualPolURIFilter.dpr));
+                tmp.add(new HydroDualPolURIFilter(icao, HydroDualPolURIFilter.dsa));
                 
-                    radarCount++;
-                    statusHandler.handle(Priority.INFO,
-                        header + " radar also in RadarLoc table # " + radarCount + " radar id = " + icao);
+                radarCount++;
+                statusHandler.handle(Priority.INFO,
+                        header + " radar # " + radarCount + " radar id = " + icao);
                 
             } catch (Exception e) {
                 statusHandler.handle(Priority.PROBLEM,
                         "Couldn't create HydroDualPol URIFilter.." + icao
                                 + " is not a known RADAR site.");
-                    iter.remove();
-                }
-            } else {
-                    statusHandler.handle(Priority.INFO,
-                         "Couldn't create HydroDualPol URIFilter for " + icao
-                            + "-- invalid radarId in RadarLoc table.");
-                    iter.remove();            
+                iter.remove();
             }
         }
         filters = tmp.toArray(new HydroDualPolURIFilter[tmp.size()]);
-    }
-    
-    /*
-     * check if the radarId is in radarLoc table and use_radar field as T
-     * @checkRadarIdinUse(String icao
-     */
-    private boolean checkRadarIdinUse(String icao) {
-        boolean ret = false;
-        String query = String.format("select radid from radarloc where use_radar='T'");
-        
-            CoreDao dao = new CoreDao(DaoConfig.forDatabase("ihfs"));
-            Object[] results = dao.executeSQLQuery(query);
-            for (Object result : results){
-                String radarId = (String)result;            
-                radarId = "k" + radarId;
-                if (radarId.equalsIgnoreCase(icao)) {
-                    ret = true;
-                    break;
-                }
-                
-        }
-       
-        return ret;
     }
 
     @Override
@@ -146,7 +111,7 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
         	hydrodualpol_config = new HydroDualPolConfig(
         			(HydroDualPolURIGenerateMessage) genMessage, this);
 
-        	/*statusHandler.handle(Priority.INFO, "In HydroDualPol generateProduct..."); */  
+        	statusHandler.handle(Priority.INFO, "In HydroDualPol generateProduct...");
 
         	String productType = hydrodualpol_config.getProductType();
 
