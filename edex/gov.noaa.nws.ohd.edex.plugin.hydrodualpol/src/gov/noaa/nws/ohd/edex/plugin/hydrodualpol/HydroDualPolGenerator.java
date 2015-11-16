@@ -2,8 +2,8 @@
  * This software was developed by HSEB, OHD
  **/
 package gov.noaa.nws.ohd.edex.plugin.hydrodualpol;
-import gov.noaa.nws.ohd.edex.plugin.hydrodualpol.common.HydroDualPolConfig;
 
+import gov.noaa.nws.ohd.edex.plugin.hydrodualpol.common.HydroDualPolConfig;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -19,9 +19,11 @@ import com.raytheon.uf.common.status.IUFStatusHandler;
 import com.raytheon.uf.common.status.UFStatus;
 import com.raytheon.uf.common.status.UFStatus.Priority;
 import com.raytheon.uf.edex.cpgsrv.CompositeProductGenerator;
+import com.raytheon.uf.edex.database.dao.CoreDao;
+import com.raytheon.uf.edex.database.dao.DaoConfig;
 
 /**
- *
+ * 
  * 
  * <pre>
  * 
@@ -30,6 +32,7 @@ import com.raytheon.uf.edex.cpgsrv.CompositeProductGenerator;
  * Date         Ticket#    Engineer    Description
  * ------------ ---------- ----------- --------------------------
  * May 13, 2013            jtDeng     Initial creation
+ * August 2015 DR 17558    JtDeng HPE/DHR stacktrace and housekeep
  * 
  * This HydroDualPolGenerator creates data URI filters for dual pol radar products
  * DSA/DPR/DAA, it retrieves these radar records from "metadata" database and HDF5 files
@@ -46,21 +49,21 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
     private static final transient IUFStatusHandler statusHandler = UFStatus
             .getHandler(HydroDualPolGenerator.class);
 
-    private static final String genName = "HydroDualPol";
+    private static final String GEN_NAME = "HydroDualPol";
 
-    private static final String productType = "hydrodualpol";
+    private static final String PRODUCT_TYPE = "hydrodualpol";
 
     /** Set of icaos to filter for **/
     private Set<String> icaos = null;
 
     /** public constructor for HydroDualPolGenerator **/
     public HydroDualPolGenerator(String name, String compositeProductType) {
-        super(genName, productType);
+        super(GEN_NAME, PRODUCT_TYPE);
     }
 
     /** default thrift constructor **/
     public HydroDualPolGenerator() {
-        super(genName, productType);
+        super(GEN_NAME, PRODUCT_TYPE);
     }
 
     @Override
@@ -75,132 +78,147 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
 
     @Override
     protected void createFilters() {
-    	
-    	String header = "HydroDualPolGenerator.createFilters(): ";
+
+        String header = "HydroDualPolGenerator.createFilters(): ";
         ArrayList<URIFilter> tmp = new ArrayList<URIFilter>(icaos.size());
         Iterator<String> iter = icaos.iterator();
 
         int radarCount = 0;
         while (iter.hasNext()) {
             String icao = iter.next();
-            try {
-                tmp.add(new HydroDualPolURIFilter(icao, HydroDualPolURIFilter.daa));
-                tmp.add(new HydroDualPolURIFilter(icao, HydroDualPolURIFilter.dpr));
-                tmp.add(new HydroDualPolURIFilter(icao, HydroDualPolURIFilter.dsa));
-                
-                radarCount++;
-                statusHandler.handle(Priority.INFO,
-                        header + " radar # " + radarCount + " radar id = " + icao);
-                
-            } catch (Exception e) {
-                statusHandler.handle(Priority.PROBLEM,
-                        "Couldn't create HydroDualPol URIFilter.." + icao
-                                + " is not a known RADAR site.");
+            /* retrieve the radar_id with radar_use as T in radarLoc table */
+            if (checkRadarIdinUse(icao)) {
+                try {
+                    tmp.add(new HydroDualPolURIFilter(icao,
+                            HydroDualPolURIFilter.daa));
+                    tmp.add(new HydroDualPolURIFilter(icao,
+                            HydroDualPolURIFilter.dpr));
+                    tmp.add(new HydroDualPolURIFilter(icao,
+                            HydroDualPolURIFilter.dsa));
+
+                    radarCount++;
+                    statusHandler.handle(Priority.DEBUG, header
+                            + " radar also in RadarLoc table # " + radarCount
+                            + " radar id = " + icao);
+
+                } catch (Exception e) {
+                    statusHandler.handle(Priority.ERROR,
+                            "Couldn't create HydroDualPol URIFilter.." + icao
+                                    + " is not a known RADAR site.");
+                    iter.remove();
+                }
+            } else {
+                statusHandler.handle(Priority.WARN,
+                        "Couldn't create HydroDualPol URIFilter for " + icao
+                                + " -- invalid radarId in RadarLoc table.");
                 iter.remove();
             }
         }
         filters = tmp.toArray(new HydroDualPolURIFilter[tmp.size()]);
     }
 
+    /**
+     * check if the radarId is in radarLoc table and use_radar field as T
+     * 
+     * @param icao
+     *            - radarId
+     * @return true or false
+     */
+    private boolean checkRadarIdinUse(String icao) {
+
+        String query = String
+                .format("select radid from radarloc where use_radar='T' and radid = '"
+                        + icao.substring(1).toUpperCase() + "'");
+
+        CoreDao dao = new CoreDao(DaoConfig.forDatabase("ihfs"));
+        Object[] results = dao.executeSQLQuery(query);
+        for (Object result : results) {
+
+            if (result != null) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     @Override
     public void generateProduct(URIGenerateMessage genMessage) {
         HydroDualPolConfig hydrodualpol_config = null;
-        
-        /** test to retrieve the following fields from radar record **/     
+
+        /** test to retrieve the following fields from radar record **/
         try {
-        	hydrodualpol_config = new HydroDualPolConfig(
-        			(HydroDualPolURIGenerateMessage) genMessage, this);
+            hydrodualpol_config = new HydroDualPolConfig(
+                    (HydroDualPolURIGenerateMessage) genMessage, this);
 
-        	statusHandler.handle(Priority.INFO, "In HydroDualPol generateProduct...");
+            String productType = hydrodualpol_config.getProductType();
 
-        	String productType = hydrodualpol_config.getProductType();
+            if (productType.equalsIgnoreCase("DSA")) {
+                RadarRecord record = hydrodualpol_config.getDSA();
 
-        	if (productType.equalsIgnoreCase("DSA"))
-        	{
-        		RadarRecord record = hydrodualpol_config.getDSA();
+                if (record != null) {
+                    processDSAProduct(record);
+                } else {
+                    statusHandler.handle(Priority.DEBUG,
+                            "DSA product not found...");
+                }
+            } else if (productType.equalsIgnoreCase("DPR")) {
 
-        		if (record != null) 
-        		{
-        			processDSAProduct(record);
-        		}
-        		else
-        		{
-        			statusHandler.handle(Priority.INFO,
-        					"DSA product not found...");
-        		}
-        	}
-        	else if (productType.equalsIgnoreCase("DPR"))
-        	{
+                RadarRecord record = hydrodualpol_config.getDPR();
 
-        		RadarRecord record = hydrodualpol_config.getDPR();
+                if (record != null) {
+                    processDPRProduct(record);
+                } else {
+                    statusHandler.handle(Priority.DEBUG,
+                            "DPR product not found...");
+                }
 
-        		if (record != null)
-        		{
-        			processDPRProduct(record);
-        		}
-        		else
-        		{
-        			statusHandler.handle(Priority.INFO,
-        			"DPR product not found...");
-        		}
-        		
-        	}
+            }
 
+            else if (productType.equalsIgnoreCase("DAA")) {
+                RadarRecord record = hydrodualpol_config.getDAA();
 
-        	else if (productType.equalsIgnoreCase("DAA"))
-        	{
-        		RadarRecord record = hydrodualpol_config.getDAA();
+                if (record != null) {
+                    processDAAProduct(record);
+                } else {
+                    statusHandler.handle(Priority.DEBUG,
+                            "DAA product not found...");
+                }
+            }
+        } catch (Exception e) {
+            statusHandler
+                    .handle(Priority.ERROR, "Can not run HydroDualPol.", e);
 
-        		if (record != null)
-        		{
-        			processDAAProduct(record);
-        		}
-        		else
-        		{
-        			statusHandler.handle(Priority.INFO,
-        					"DAA product not found...");
-        		}
-        	}
         }
-        catch (Exception e)
-        {
-        	statusHandler.handle(Priority.ERROR, "Can not run HydroDualPol. " +
-        			e.getMessage());
-        	e.printStackTrace();
-        }
-    } //end generateProduct()
+    } // end generateProduct()
 
-    
-    private void processDAAProduct(RadarRecord record)
-    {
+    private void processDAAProduct(RadarRecord record) {
 
-    	DAAProductProcessor processor = new DAAProductProcessor(statusHandler);
+        DAAProductProcessor processor = new DAAProductProcessor(statusHandler);
 
-    	processor.process(record);
-
-    }
-    
-    private void processDPRProduct(RadarRecord record)
-    {
-
-    	DPRProductProcessor processor = new DPRProductProcessor(statusHandler);
-
-    	processor.process(record);
+        processor.process(record);
 
     }
 
-    private void processDSAProduct(RadarRecord record)
-    {
+    private void processDPRProduct(RadarRecord record) {
 
-    	DSAProductProcessor processor = new DSAProductProcessor(statusHandler);
+        DPRProductProcessor processor = new DPRProductProcessor(statusHandler);
 
-    	processor.process(record);
+        processor.process(record);
 
     }
-    
-	@Override
+
+    private void processDSAProduct(RadarRecord record) {
+
+        DSAProductProcessor processor = new DSAProductProcessor(statusHandler);
+
+        processor.process(record);
+
+    }
+
+    @Override
     public boolean isRunning() {
         return getConfigManager().getHydroDualPolState();
     }
-	
+
 }
