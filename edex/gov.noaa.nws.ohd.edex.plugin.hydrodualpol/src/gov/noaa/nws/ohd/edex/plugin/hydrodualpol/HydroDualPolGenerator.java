@@ -10,11 +10,13 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.raytheon.edex.urifilter.URIFilter;
 import com.raytheon.edex.urifilter.URIGenerateMessage;
 import com.raytheon.uf.common.dataplugin.radar.RadarRecord;
 import com.raytheon.uf.common.dataplugin.radar.util.RadarsInUseUtil;
-
 import com.raytheon.uf.common.status.IUFStatusHandler;
 import com.raytheon.uf.common.status.UFStatus;
 import com.raytheon.uf.common.status.UFStatus.Priority;
@@ -39,6 +41,8 @@ import com.raytheon.uf.edex.database.dao.DaoConfig;
  * once get notified. 
  * It also generates the post-processing DSA/DPR/DAA products in specific format and 
  * stores in IHFS database as inputs to MPE/HPE/HPN programs.
+ * April  2016 DCS 18497  Build 17 DSA adaptable parameters changes 
+ *                        write the log message to separate edex-ingestDat-hydrodualpol-yyymmdd.log file
  * </pre>
  * 
  * @author deng2
@@ -52,6 +56,9 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
     private static final String GEN_NAME = "HydroDualPol";
 
     private static final String PRODUCT_TYPE = "hydrodualpol";
+
+    private static final Logger logger = LoggerFactory
+            .getLogger("HydroDualPolLog");
 
     /** Set of icaos to filter for **/
     private Set<String> icaos = null;
@@ -69,7 +76,7 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
     @Override
     protected void configureFilters() {
 
-        logger.debug(getGeneratorName() + " process Filter Config...");
+        logger.info(getGeneratorName() + " process Filter Config...");
         icaos = new HashSet<String>(RadarsInUseUtil.getSite(null,
                 RadarsInUseUtil.LOCAL_CONSTANT));
         icaos.addAll(RadarsInUseUtil.getSite(null,
@@ -97,20 +104,20 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
                             HydroDualPolURIFilter.dsa));
 
                     radarCount++;
-                    statusHandler.handle(Priority.DEBUG, header
-                            + " radar also in RadarLoc table # " + radarCount
-                            + " radar id = " + icao);
+
+                    logger.info(header + " radar also in RadarLoc table # "
+                            + radarCount + " radar id = " + icao);
 
                 } catch (Exception e) {
-                    statusHandler.handle(Priority.ERROR,
-                            "Couldn't create HydroDualPol URIFilter.." + icao
-                                    + " is not a known RADAR site.");
+
+                    logger.error("Couldn't create HydroDualPol URIFilter.."
+                            + icao + " is not a known RADAR site.");
                     iter.remove();
                 }
             } else {
-                statusHandler.handle(Priority.WARN,
-                        "Couldn't create HydroDualPol URIFilter for " + icao
-                                + " -- invalid radarId in RadarLoc table.");
+
+                logger.warn("Couldn't create HydroDualPol URIFilter for "
+                        + icao + " -- invalid radarId in RadarLoc table.");
                 iter.remove();
             }
         }
@@ -148,6 +155,10 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
 
         /** test to retrieve the following fields from radar record **/
         try {
+
+            statusHandler.handle(Priority.INFO,
+                    "Process DSA, DPR, DAA products via HydroDualPol.");
+
             hydrodualpol_config = new HydroDualPolConfig(
                     (HydroDualPolURIGenerateMessage) genMessage, this);
 
@@ -159,8 +170,8 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
                 if (record != null) {
                     processDSAProduct(record);
                 } else {
-                    statusHandler.handle(Priority.DEBUG,
-                            "DSA product not found...");
+
+                    logger.warn("DSA product not found...");
                 }
             } else if (productType.equalsIgnoreCase("DPR")) {
 
@@ -169,8 +180,8 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
                 if (record != null) {
                     processDPRProduct(record);
                 } else {
-                    statusHandler.handle(Priority.DEBUG,
-                            "DPR product not found...");
+
+                    logger.warn("DPR product not found...");
                 }
 
             }
@@ -181,20 +192,21 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
                 if (record != null) {
                     processDAAProduct(record);
                 } else {
-                    statusHandler.handle(Priority.DEBUG,
-                            "DAA product not found...");
+
+                    logger.warn("DAA product not found...");
                 }
             }
         } catch (Exception e) {
             statusHandler
                     .handle(Priority.ERROR, "Can not run HydroDualPol.", e);
+            logger.error("Can not run HydroDualPol.", e);
 
         }
     } // end generateProduct()
 
     private void processDAAProduct(RadarRecord record) {
 
-        DAAProductProcessor processor = new DAAProductProcessor(statusHandler);
+        DAAProductProcessor processor = new DAAProductProcessor(logger);
 
         processor.process(record);
 
@@ -202,7 +214,7 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
 
     private void processDPRProduct(RadarRecord record) {
 
-        DPRProductProcessor processor = new DPRProductProcessor(statusHandler);
+        DPRProductProcessor processor = new DPRProductProcessor(logger);
 
         processor.process(record);
 
@@ -210,7 +222,7 @@ public class HydroDualPolGenerator extends CompositeProductGenerator {
 
     private void processDSAProduct(RadarRecord record) {
 
-        DSAProductProcessor processor = new DSAProductProcessor(statusHandler);
+        DSAProductProcessor processor = new DSAProductProcessor(logger);
 
         processor.process(record);
 
