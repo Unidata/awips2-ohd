@@ -4,13 +4,12 @@ import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Date;
+
+import org.slf4j.Logger;
+
 import com.raytheon.uf.common.dataplugin.radar.RadarRecord;
 import com.raytheon.uf.common.dataplugin.shef.tables.DPRRadar;
 import com.raytheon.uf.common.dataplugin.shef.tables.DPRRadarId;
-
-import com.raytheon.uf.common.status.IUFStatusHandler;
-import com.raytheon.uf.common.status.UFStatus.Priority;
-
 import com.raytheon.uf.common.ohd.AppsDefaults;
 import com.raytheon.uf.edex.database.dao.CoreDao;
 import com.raytheon.uf.edex.database.dao.DaoConfig;
@@ -25,6 +24,8 @@ import com.raytheon.uf.edex.database.dao.DaoConfig;
  * ------------ ----------  ----------- --------------------------
  * May 2013 DCS 167    P. Tilles   Initial Creation
  * August 2015 DR 17558   JtDeng HPE/DHR stacktrace and housekeep
+ * April  2016 DCS 18497  Build 17 DSA adaptable parameters changes
+ *                        write the log message to separate edex-ingestDat-hydrodualpol-yyymmdd.log file
  * </pre>
  * 
  * 
@@ -39,13 +40,12 @@ public class DPRProductProcessor {
     private static final int MAX_IHRAP = PolarToQuarterHRAPTransformer.MAX_IHRAP;
     private static final int MAX_JHRAP = PolarToQuarterHRAPTransformer.MAX_JHRAP;
 
-    IUFStatusHandler statusHandler = null;
+    private Logger logger = null;
 
     // ---------------------------------------------------------------------
 
-    public DPRProductProcessor(IUFStatusHandler statusHandler) {
-        this.statusHandler = statusHandler;
-
+    public DPRProductProcessor(Logger statusHandler) {
+        this.logger = statusHandler;
         readAppsDefaults();
     }
 
@@ -61,6 +61,8 @@ public class DPRProductProcessor {
 
     public void process(RadarRecord record) {
         DPRHeaderData headerData = new DPRHeaderData();
+
+        logger.info("Start to process DPR product");
 
         // process header portion of DPR product
         // precip mode and non-precip mode products have headers
@@ -164,37 +166,16 @@ public class DPRProductProcessor {
                 prodMin);
         headerData.setFileName(fileName);
 
-        statusHandler.handle(Priority.INFO,
-                "DPR product: uri = " + headerData.getUri());
+        logger.info("Process DPR product: uri = " + headerData.getUri());
 
-        statusHandler.handle(Priority.DEBUG, "\n"
-                + "DPR product:  radar id  = "
-                + radid
-                + " obsTime  = "
-                + obsTime
-                + " volumeCoveragePattern = "
-                + volumeCoveragePattern
-                + " operationalMode = "
-                + operationalMode
-                + " maxVal = "
-                + maxVal
-                + "\n"
-                + " scale = "
-                + scale
-                + " offset = "
-                + offset
-                + " biasValue = "
-                + biasValue
-                + "\n"
-                + " volume scan date = "
-                + volScanDate
-                + " volume scan time = "
-                + volScanTime
-                + " precipDetectedFlag = "
-                + precipDetectedFlag
-                + " biasAppliedFlag = "
-                + biasAppliedFlag
-                + " fileName = "
+        logger.debug("DPR product:  radar id  = " + radid + " obsTime  = "
+                + obsTime + " volumeCoveragePattern = " + volumeCoveragePattern
+                + " operationalMode = " + operationalMode + " maxVal = "
+                + maxVal + "\n" + " scale = " + scale + " offset = " + offset
+                + " biasValue = " + biasValue + "\n" + " volume scan date = "
+                + volScanDate + " volume scan time = " + volScanTime
+                + " precipDetectedFlag = " + precipDetectedFlag
+                + " biasAppliedFlag = " + biasAppliedFlag + " fileName = "
                 + fileName);
 
     }
@@ -209,8 +190,8 @@ public class DPRProductProcessor {
 
         short[] rawShortDataArray = record.getRawShortData();
         if (rawShortDataArray == null) {
-            statusHandler.handle(Priority.ERROR,
-                    "\nDPR Product: ERROR --- rawShortDataArray is null");
+
+            logger.error("\nDPR Product: ERROR --- rawShortDataArray is null");
         } else {
 
             int numRangeBins = record.getNumBins();
@@ -229,7 +210,7 @@ public class DPRProductProcessor {
                     scale, offset, numRadials, numRangeBins);
 
             PolarToQuarterHRAPTransformer transformer = new PolarToQuarterHRAPTransformer(
-                    statusHandler);
+                    logger);
             float[][] hrapGrid = transformer
                     .transform250MeterPolarToQuarterHRAP(polarGrid, lat, lon);
 
@@ -317,9 +298,7 @@ public class DPRProductProcessor {
                 d.volumeScanTime, d.getBiasValue(), d.precipDetectedFlag,
                 d.getFileName());
 
-        statusHandler
-                .handle(Priority.DEBUG,
-                        "In routine writeToDPRRadarTable - finish to write to DPRradar table");
+        logger.debug("In routine writeToDPRRadarTable - finish to write to DPRradar table");
 
     }
 
@@ -345,16 +324,16 @@ public class DPRProductProcessor {
             dao.saveOrUpdate(radarObject);
 
         } catch (Exception e) {
-            statusHandler.handle(Priority.ERROR,
-                    "Can not save/update DPRRadar table.", e);
-            statusHandler.handle(Priority.ERROR, "radar id  = " + radid
-                    + " obstime = " + obstime + " volumeCoveragePattern = "
-                    + volumeCoveragePattern + " operationalMode = "
-                    + operationalMode + " maxVal = " + maxVal + " scale = "
-                    + scale + "\noffset = " + offset + " volumeScanDate = "
-                    + volumeScanDate + " volumeScanTime = " + volumeScanTime
-                    + " biasValue = " + biasValue + " precipDetectedFlag = "
-                    + precipDetectedFlag + " filename = " + filename);
+
+            logger.error("Can not save/update DPRRadar table.", e);
+            logger.error("radar id  = " + radid + " obstime = " + obstime
+                    + " volumeCoveragePattern = " + volumeCoveragePattern
+                    + " operationalMode = " + operationalMode + " maxVal = "
+                    + maxVal + " scale = " + scale + "\noffset = " + offset
+                    + " volumeScanDate = " + volumeScanDate
+                    + " volumeScanTime = " + volumeScanTime + " biasValue = "
+                    + biasValue + " precipDetectedFlag = " + precipDetectedFlag
+                    + " filename = " + filename);
 
         }
 
@@ -416,10 +395,8 @@ public class DPRProductProcessor {
             }
 
         } catch (Exception e) {
-
-            statusHandler.handle(Priority.ERROR,
-                    "Could not write out decoded DPR product file -"
-                            + fullPathName, e);
+            logger.error("Could not write out decoded DPR product file -"
+                    + fullPathName, e);
         }
 
         finally {
@@ -427,7 +404,7 @@ public class DPRProductProcessor {
                 try {
                     outputStream.close();
                 } catch (IOException e) {
-                    statusHandler.handle(Priority.ERROR,
+                    logger.error(
                             "Could not close out decoded DPR product file -"
                                     + fullPathName, e);
                 }

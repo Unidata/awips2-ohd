@@ -19,6 +19,7 @@ Require-Bundle: org.geotools;bundle-version="2.6.4",
  com.raytheon.uf.common.monitor;bundle-version="1.12.1174",
  com.raytheon.edex.plugin.radar,
  com.raytheon.uf.common.ohd;bundle-version="1.12.1174",
- com.raytheon.uf.common.dataplugin.shef
+ com.raytheon.uf.common.dataplugin.shef,
+ org.slf4j;bundle-version="1.7.5"
 Import-Package: com.raytheon.edex.plugin.radar,
  com.raytheon.uf.edex.plugin.scan.common

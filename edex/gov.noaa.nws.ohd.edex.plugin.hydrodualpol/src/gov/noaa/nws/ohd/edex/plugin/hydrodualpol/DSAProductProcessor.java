@@ -6,6 +6,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Date;
 
+import org.slf4j.Logger;
+
 import com.raytheon.uf.common.dataplugin.radar.RadarRecord;
 import com.raytheon.uf.common.dataplugin.radar.level3.Layer;
 import com.raytheon.uf.common.dataplugin.radar.level3.SymbologyBlock;
@@ -16,8 +18,6 @@ import com.raytheon.uf.common.dataplugin.shef.tables.DSAAdaptId;
 import com.raytheon.uf.common.dataplugin.shef.tables.DSARadar;
 import com.raytheon.uf.common.dataplugin.shef.tables.DSARadarId;
 import com.raytheon.uf.common.ohd.AppsDefaults;
-import com.raytheon.uf.common.status.IUFStatusHandler;
-import com.raytheon.uf.common.status.UFStatus.Priority;
 import com.raytheon.uf.edex.database.dao.CoreDao;
 import com.raytheon.uf.edex.database.dao.DaoConfig;
 
@@ -33,6 +33,7 @@ import com.raytheon.uf.edex.database.dao.DaoConfig;
  * August 2015  DR 17558    JtDeng      HPE/DHR stacktrace and housekeeping
  * Feb 2016     DCS 18497   P Tilles    Add code for processing of Build 17 
  *                                        DSA Products
+ *                          write the log message to separate edex-ingestDat-hydrodualpol-yyymmdd.log file
  * 
  * 
  * </pre>
@@ -52,12 +53,12 @@ public class DSAProductProcessor {
 
     private static final short NO_DATA_FLAG = 0;
 
-    IUFStatusHandler statusHandler = null;
+    Logger logger = null;
 
     // ---------------------------------------------------------------------
 
-    public DSAProductProcessor(IUFStatusHandler statusHandler) {
-        this.statusHandler = statusHandler;
+    public DSAProductProcessor(Logger statusHandler) {
+        this.logger = statusHandler;
 
         readAppsDefaults();
     }
@@ -76,6 +77,8 @@ public class DSAProductProcessor {
     public void process(RadarRecord record) {
         DSAHeaderData headerData = new DSAHeaderData();
 
+        logger.info("Start to process DSA product");
+
         processHeader(record, headerData);
 
         if (headerData.isProductNull()) {
@@ -90,16 +93,14 @@ public class DSAProductProcessor {
     // ---------------------------------------------------------------------
     private void processNullProduct(RadarRecord record, DSAHeaderData headerData) {
 
-        statusHandler.handle(
-                Priority.INFO,
-                "\n" + "DSA product is a null product" + "\n" + " radar id  = "
-                        + headerData.getRadarId() + " obsTime  = "
-                        + headerData.getObsTime() + " volumeCoveragePattern = "
-                        + headerData.getVolumeCoveragePattern()
-                        + " operationalMode = "
-                        + headerData.getOperationalMode() + " biasValue = "
-                        + headerData.getBiasValue() + " nullProductFlag = "
-                        + headerData.getNullProductFlag());
+        
+	logger.debug("Process null DSA product" + "\n" + " radar id  = "
+                + headerData.getRadarId() + " obsTime  = "
+                + headerData.getObsTime() + " volumeCoveragePattern = "
+                + headerData.getVolumeCoveragePattern() + " operationalMode = "
+                + headerData.getOperationalMode() + " biasValue = "
+                + headerData.getBiasValue() + " nullProductFlag = "
+                + headerData.getNullProductFlag());
 
         processNullProductString(record);
 
@@ -111,8 +112,7 @@ public class DSAProductProcessor {
 
         if (symbologyBlock == null) {
 
-            statusHandler.handle(Priority.INFO,
-                    "Null Product text not found (symbology block not found.");
+            logger.warn("Null Product text not found (symbology block not found.");
 
             return;
         }
@@ -134,7 +134,7 @@ public class DSAProductProcessor {
 
                         String nullProductText = textSymbolPacket.getTheText()
                                 .trim();
-                        statusHandler.handle(Priority.DEBUG, nullProductText);
+                        logger.debug(nullProductText);
 
                         break;
                     }
@@ -148,9 +148,9 @@ public class DSAProductProcessor {
     private void processGriddedDataProduct(RadarRecord record,
             DSAHeaderData headerData) {
 
-        statusHandler.handle(
-                Priority.INFO,
-                "\n" + "DSA product:  radar id  = " + headerData.getRadarId()
+     logger.info("Process DSA product: uri = " + headerData.getUri());   
+
+     logger.debug("DSA product:  radar id  = " + headerData.getRadarId()
                         + " obsTime  = " + headerData.getObsTime()
                         + " volumeCoveragePattern = "
                         + headerData.getVolumeCoveragePattern()
@@ -174,8 +174,8 @@ public class DSAProductProcessor {
         byte[] dataArray = record.getRawData();
 
         if (dataArray == null) {
-            statusHandler.handle(Priority.ERROR,
-                    "DSA Product: dataArray is null");
+         
+               logger.error("DSA Product: dataArray is null");
         }
 
         else {
@@ -194,7 +194,7 @@ public class DSAProductProcessor {
                     offset, numRadials, numRangeBins);
 
             PolarToQuarterHRAPTransformer transformer = new PolarToQuarterHRAPTransformer(
-                    statusHandler);
+                    logger);
             float[][] hrapGrid = transformer
                     .transform250MeterPolarToQuarterHRAP(polarGrid, lat, lon);
 
@@ -222,7 +222,8 @@ public class DSAProductProcessor {
 
         if (symbologyBlock == null) {
 
-            statusHandler.handle(Priority.ERROR, "symbology block not found.");
+            logger.warn("symbology block not found.");
+
             return;
         }
 
@@ -246,7 +247,7 @@ public class DSAProductProcessor {
                 if (packet instanceof TextSymbolPacket) {
                     TextSymbolPacket textSymbolPacket = (TextSymbolPacket) packet;
                     productText[nstring] = textSymbolPacket.getTheText().trim();
-                    statusHandler.handle(Priority.INFO, productText[nstring]);
+                    logger.debug(productText[nstring]);
                     nstring++;
 
                     if (nlayer == 2 && npacket == 5)
@@ -285,7 +286,7 @@ public class DSAProductProcessor {
 
             // Build 16 Processing
 
-            statusHandler.handle(Priority.INFO, "\n" + " Build 16 Product ");
+            logger.debug("\n" + " Build 16 Product ");
 
             // parse string 2
             String[] valuesFromString2 = productText[1].split("[ ]+");
@@ -311,7 +312,7 @@ public class DSAProductProcessor {
 
             // Build 17 Processing
 
-            statusHandler.handle(Priority.INFO, "\n" + " Build 17 Product ");
+            logger.debug( "\n" + " Build 17 Product ");
 
             // parse string 2
             String[] valuesFromString2 = productText[1].split("[ ]+");
@@ -337,9 +338,9 @@ public class DSAProductProcessor {
 
         } else {
 
-            statusHandler.handle(Priority.INFO, "\n"
-                    + "invalid adaptable parameter set ");
-            statusHandler.handle(Priority.INFO, "\n" + "orig string 1 = "
+                   logger.warn("invalid adaptable parameter set ");
+         
+                   logger.debug("orig string 1 = "
                     + productText[0]);
         }
     }
@@ -404,9 +405,8 @@ public class DSAProductProcessor {
             float minTermAngle = -99.f;
             float maxVolumeHour = -99.f;
             //
-            statusHandler
-                    .handle(Priority.DEBUG,
-                            "In routine processDSAAdaptParameter_Build16 - before write to DSAAdapt table");
+         
+                   logger.debug("In routine processDSAAdaptParameter_Build16 - before write to DSAAdapt table");
 
             writeToDSAAdapt(radid, obstime, numOfAdap, defaultMLDepth,
                     meltLayerSource, kdpMult, kdpPower, zrMult, zrPower,
@@ -420,13 +420,11 @@ public class DSAProductProcessor {
                     biasAppliedFlag, metSignalProc, metSignalThresh, cappiProc,
                     cappiThresh, cappiHeight);
 
-            statusHandler
-                    .handle(Priority.DEBUG,
-                            "In routine processDSAAdaptParameter_Build16 - after write to DSAAdapt table");
+           
+                         logger.debug("In routine processDSAAdaptParameter_Build16 - after write to DSAAdapt table");
         } catch (Exception e) {
-            statusHandler
-                    .handle(Priority.ERROR,
-                            "In routine processDSAAdaptParameter_Build16 -can not parse value.",
+          
+                     logger.error("In routine processDSAAdaptParameter_Build16 -can not parse value.",
                             e);
 
         }
@@ -506,9 +504,8 @@ public class DSAProductProcessor {
 
             // write record to DSAAdapt table
 
-            statusHandler
-                    .handle(Priority.DEBUG,
-                            "In routine processDSAAdaptParameter_Build17 - before write to DSAAdapt table");
+           
+                   logger.debug("In routine processDSAAdaptParameter_Build17 - before write to DSAAdapt table");
 
             writeToDSAAdapt(radid, obstime, numOfAdap, defaultMLDepth,
                     meltLayerSource, kdpMult, kdpPower, zrMult, zrPower,
@@ -522,13 +519,11 @@ public class DSAProductProcessor {
                     biasAppliedFlag, metSignalProc, metSignalThresh, cappiProc,
                     cappiThresh, cappiHeight);
 
-            statusHandler
-                    .handle(Priority.DEBUG,
-                            "In routine processDSAAdaptParameter_Build17 - after write to DSAAdapt table");
+           
+                  logger.debug("In routine processDSAAdaptParameter_Build17 - after write to DSAAdapt table");
         } catch (Exception e) {
-            statusHandler
-                    .handle(Priority.ERROR,
-                            "In routine processDSAAdaptParameter_Build17 -can not parse value.",
+           
+                   logger.error("In routine processDSAAdaptParameter_Build17 -can not parse value.",
                             e);
 
         }
@@ -602,6 +597,40 @@ public class DSAProductProcessor {
          * statusHandler.handle(Priority.INFO, "\n" + cappi_thresh);
          * statusHandler.handle(Priority.INFO, "\n" + cappi_height);
          */
+	  logger.debug("radid = " + radid
+                    + " obstime = " + obstime + " num_of_adap = " + num_of_adap
+                    + " default_ml_depth = " + default_ml_depth
+                    + " melt_layer_source = " + melt_layer_source
+                    + "\nkdp_mult = " + kdp_mult + " kdp_power = " + kdp_power
+                    + " z_r_mult = " + z_r_mult + " z_r_power = " + z_r_power
+                    + " zdr_z_mult = " + zdr_z_mult + " zdr_z_power = "
+                    + zdr_z_power + " zdr_zdr_power = " + zdr_zdr_power
+                    + "\nmin_corr_precip = " + min_corr_precip
+                    + " min_corr_kdp = " + min_corr_kdp + " refl_max = "
+                    + refl_max + " kdp_max_beam_blk = " + kdp_max_beam_blk
+                    + " max_usability_blk = " + max_usability_blk
+                    + "\nkdp_min_usage_rate = " + kdp_min_usage_rate
+                    + " ws_mult = " + ws_mult + " gr_mult = " + gr_mult
+                    + " rh_mult = " + rh_mult + " ds_mult = " + ds_mult
+                    + " ic_mult = " + ic_mult + " grid_is_full = "
+                    + grid_is_full + "\npaif_rate = " + paif_rate
+                    + " paif_area = " + paif_area + " rain_time_thresh = "
+                    + rain_time_thresh + " num_zones = " + num_zones
+                    + " max_precip_rate = " + max_precip_rate
+                    + " restart_time = " + restart_time
+                    + "\nmax_interp_time = " + max_interp_time
+                    + " max_hourly_acc = " + max_hourly_acc + " time_bias = "
+                    + time_bias + " num_grpairs = " + num_grpairs
+                    + " reset_bias = " + reset_bias + " longst_lag = "
+                    + longst_lag + "\nmin_early_term_angle = "
+                    + min_early_term_angle + "max_volume_per_hour = "
+                    + max_volume_per_hour + "\ndry_snow_mult = "
+                    + dry_snow_mult + "rkdp_use_thresh = " + rkdp_use_thresh
+                    + "\nbias_applied_flag = " + bias_applied_flag
+                    + "met_signal_proc = " + met_signal_proc
+                    + "\ncappi_proc_flag = " + cappi_proc_flag
+                    + "cappi_thresh = " + cappi_thresh + "\ncappi_height = "
+                    + cappi_height);
 
         DSAAdaptId id = new DSAAdaptId();
         id.setRadid(radid);
@@ -627,9 +656,9 @@ public class DSAProductProcessor {
             dao.saveOrUpdate(radarObject);
 
         } catch (Exception e) {
-            statusHandler.handle(Priority.ERROR,
-                    "Can not save/update DSAAdapt table.", e);
-            statusHandler.handle(Priority.ERROR, "radid = " + radid
+           
+                logger.error("Can not save/update DSAAdapt table.", e);
+            logger.error("radid = " + radid
                     + " obstime = " + obstime + " num_of_adap = " + num_of_adap
                     + " default_ml_depth = " + default_ml_depth
                     + " melt_layer_source = " + melt_layer_source
@@ -847,8 +876,7 @@ public class DSAProductProcessor {
                 prodMin);
         headerData.setFileName(fileName);
 
-        statusHandler.handle(Priority.INFO,
-                "DSA product: uri = " + headerData.getUri());
+        logger.info("DSA product: uri = " + headerData.getUri());
 
     }
 
@@ -862,7 +890,7 @@ public class DSAProductProcessor {
 
         try {
 
-            statusHandler.handle(Priority.INFO, "\n" + " writing to file = "
+            logger.debug("writing to file = "
                     + fullPathName);
 
             FileOutputStream fileOutputStream = new FileOutputStream(
@@ -905,12 +933,11 @@ public class DSAProductProcessor {
                 }
             }
 
-            statusHandler.handle(Priority.INFO, "\n"
-                    + "DSA product: max value = " + max);
+                  logger.debug("DSA product: max value = " + max);
 
         } catch (Exception e) {
-            statusHandler.handle(Priority.ERROR,
-                    "Could not write out decoded DSA product file.", e);
+
+            logger.error("Could not write out decoded DSA product file.", e);
         }
 
         finally {
@@ -918,9 +945,9 @@ public class DSAProductProcessor {
                 try {
                     outputStream.close();
                 } catch (IOException e) {
-                    statusHandler.handle(Priority.ERROR,
-                            "Could not close out decoded DSA product file - "
-                                    + fullPathName);
+
+                    logger.error("Could not close out decoded DSA product file - "
+                            + fullPathName);
                 }
             }
         }
@@ -930,10 +957,8 @@ public class DSAProductProcessor {
     // ---------------------------------------------------------------------
 
     private void writeToDSARadarTable(DSAHeaderData d) {
-        statusHandler
-                .handle(Priority.DEBUG,
-                        "\n"
-                                + "In routine writeToDSARadarTable - before write to DSARadar table");
+       
+        logger.debug("In routine writeToDSARadarTable - before write to DSARadar table");
 
         writeToDSARadarTable(d.getRadarId(), d.getObsTime(),
                 d.volumeCoveragePattern, d.operationalMode, d.getMaxVal(),
@@ -943,10 +968,7 @@ public class DSAProductProcessor {
                 d.getStormTotalEndTime(), d.getBiasValue(),
                 d.getNullProductFlag(), d.getFileName());
 
-        statusHandler
-                .handle(Priority.DEBUG,
-                        "\n"
-                                + "In routine writeToDSARadarTable - after write to DSARadar table");
+        logger.debug("In routine writeToDSARadarTable - finish to write to DSARadar table");
 
     }
 
@@ -977,9 +999,9 @@ public class DSAProductProcessor {
             dao.saveOrUpdate(radarObject);
 
         } catch (Exception e) {
-            statusHandler.handle(Priority.ERROR,
-                    "Can not save/update DSARadar table.", e);
-            statusHandler.handle(Priority.ERROR, "radid = " + radid
+          
+                   logger.error("Can not save/update DSARadar table.", e);
+            logger.error("radid = " + radid
                     + " obstime = " + obstime + " volumeCoveragePattern = "
                     + volumeCoveragePattern + " operationalMode = "
                     + operationalMode + "\nmaxVal = " + maxVal + " scale = "

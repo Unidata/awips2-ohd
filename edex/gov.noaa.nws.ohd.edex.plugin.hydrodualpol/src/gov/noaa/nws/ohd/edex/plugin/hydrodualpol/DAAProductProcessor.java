@@ -9,6 +9,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
+import org.slf4j.Logger;
+
 import com.raytheon.uf.common.dataplugin.radar.RadarRecord;
 import com.raytheon.uf.common.dataplugin.radar.level3.Layer;
 import com.raytheon.uf.common.dataplugin.radar.level3.SymbologyBlock;
@@ -17,8 +19,6 @@ import com.raytheon.uf.common.dataplugin.radar.level3.TextSymbolPacket;
 import com.raytheon.uf.common.dataplugin.shef.tables.DAARadar;
 import com.raytheon.uf.common.dataplugin.shef.tables.DAARadarId;
 import com.raytheon.uf.common.ohd.AppsDefaults;
-import com.raytheon.uf.common.status.IUFStatusHandler;
-import com.raytheon.uf.common.status.UFStatus.Priority;
 import com.raytheon.uf.edex.database.dao.CoreDao;
 import com.raytheon.uf.edex.database.dao.DaoConfig;
 import com.raytheon.uf.edex.database.query.DatabaseQuery;
@@ -33,6 +33,8 @@ import com.raytheon.uf.edex.database.query.DatabaseQuery;
  * ------------ ----------  ----------- --------------------------
  * May 2013 DCS 167    P. Tilles   Initial Creation
  * August 2015 DR 17558   JtDeng HPE/DHR stacktrace and housekeep
+ * April  2016 DCS 18497  Build 17 DSA adaptable parameters changes
+ *                        write the log message to separate edex-ingestDat-hydrodualpol-yyymmdd.log file
  * </pre>
  * 
  * 
@@ -50,14 +52,15 @@ public class DAAProductProcessor {
     private boolean useTimeWindowFilter = false;
     private String outputGridDirectory = "/tmp";
 
-    IUFStatusHandler statusHandler = null;
 
     protected Class<?> daoClass = null;
 
+    private Logger logger = null;
+
     // ---------------------------------------------------------------------
 
-    public DAAProductProcessor(IUFStatusHandler statusHandler) {
-        this.statusHandler = statusHandler;
+    public DAAProductProcessor(Logger statusHandler) {
+        this.logger = statusHandler;
 
         readAppsDefaults();
 
@@ -82,6 +85,8 @@ public class DAAProductProcessor {
     public void process(RadarRecord record) {
         DAAHeaderData headerData = new DAAHeaderData();
         boolean isProductNull = false;
+
+        logger.info("Start to process DAA product");
 
         processHeader(record, headerData);
 
@@ -151,19 +156,15 @@ public class DAAProductProcessor {
         String fileName = "xxxxxxxxxxxxxxxx";
         boolean withinTOHWindow = false;
 
-        statusHandler.handle(Priority.INFO,
-                "DAA product: uri = " + headerData.getUri());
+        logger.info("Process null DAA product: uri = " + headerData.getUri());
 
-        statusHandler.handle(
-                Priority.DEBUG,
-                "\n" + "DAA product:  radar id  = " + headerData.getRadarId()
-                        + " null product flag = "
-                        + headerData.getNullProductFlag() + " maxValh= "
-                        + headerData.getMaxValh() + " biasValue = "
-                        + headerData.getBiasValue() + "\n" + " obsTime  = "
-                        + headerData.getObsTime() + " productTime  = "
-                        + headerData.getProductGenerationTime()
-                        + " minOff   = " + headerData.getMinutesOffTopOfHour());
+        logger.debug("DAA product:  radar id  = " + headerData.getRadarId()
+                + " null product flag = " + headerData.getNullProductFlag()
+                + " maxValh= " + headerData.getMaxValh() + " biasValue = "
+                + headerData.getBiasValue() + "\n" + " obsTime  = "
+                + headerData.getObsTime() + " productTime  = "
+                + headerData.getProductGenerationTime() + " minOff   = "
+                + headerData.getMinutesOffTopOfHour());
 
         if (useTimeWindowFilter) {
             withinTOHWindow = TopOfHourCheck(decodeWindowInMinutes,
@@ -174,7 +175,7 @@ public class DAAProductProcessor {
         }
 
         if (!withinTOHWindow) {
-            statusHandler.handle(Priority.DEBUG, "DAA product is not TOH");
+            logger.info("DAA product is not TOH");
         } else {
             String nullProductDateTimeString = processNullProductString(
                     headerData, record);
@@ -208,9 +209,9 @@ public class DAAProductProcessor {
 
                 int minutesSincePrecipDetected = (short) (millisSincePrecipDetected / 60000);
 
-                statusHandler.handle(Priority.DEBUG,
-                        "minutesSincePrecipDetected = "
-                                + minutesSincePrecipDetected);
+                logger.debug("minutesSincePrecipDetected = "
+                        + minutesSincePrecipDetected);
+
                 headerData.setCoverageDur(minutesSincePrecipDetected);
 
                 // TODO
@@ -262,8 +263,7 @@ public class DAAProductProcessor {
         if (symbologyBlock == null) {
             // problem reading symbology block
 
-            statusHandler.handle(Priority.WARN,
-                    "Null Product text not found (symbology block not found).");
+            logger.warn("Null Product text not found (symbology block not found).");
         } else {
             // symbology block read successfully
 
@@ -275,15 +275,14 @@ public class DAAProductProcessor {
                         // read and print null product string
                         String nullProductText = textSymbolPacket.getTheText()
                                 .trim();
-                        statusHandler.handle(Priority.DEBUG, nullProductText);
+                        logger.debug(nullProductText);
 
                         // if string contains a date/time, then parse it out
                         if (headerData.getNullProductFlag() == 5
                                 && !nullProductText.matches(".*RPG.*")) {
                             dateTimeString = nullProductText.substring(32,
                                     nullProductText.length() - 1);
-                            statusHandler.handle(Priority.DEBUG, "date/time = "
-                                    + dateTimeString);
+                            logger.debug("date/time = " + dateTimeString);
 
                         } // end if (!nullProductText.matches("RPG"))
                     } // end if (packet instanceof TextSymbolPacket)
@@ -348,21 +347,16 @@ public class DAAProductProcessor {
         String obsTime = headerData.getObsTime();
         short minOff = headerData.getMinutesOffTopOfHour();
 
-        statusHandler.handle(Priority.INFO,
-                "DAA product: uri = " + headerData.getUri());
+        logger.info("Process DAA product: uri = " + headerData.getUri());
 
-        statusHandler.handle(
-                Priority.DEBUG,
-                "\n" + "DAA product:  radar id  = " + headerData.getRadarId()
-                        + " null product flag = "
-                        + headerData.getNullProductFlag() + " scale = "
-                        + headerData.getScale() + " offset = "
-                        + headerData.getOffset() + " maxValh= "
-                        + headerData.getMaxValh() + " biasValue = "
-                        + headerData.getBiasValue() + "\n" + " obsTime  = "
-                        + obsTime + " productTime  = "
-                        + headerData.getProductGenerationTime()
-                        + " minOff   = " + minOff);
+        logger.debug("DAA product:  radar id  = " + headerData.getRadarId()
+                + " null product flag = " + headerData.getNullProductFlag()
+                + " scale = " + headerData.getScale() + " offset = "
+                + headerData.getOffset() + " maxValh= "
+                + headerData.getMaxValh() + " biasValue = "
+                + headerData.getBiasValue() + "\n" + " obsTime  = " + obsTime
+                + " productTime  = " + headerData.getProductGenerationTime()
+                + " minOff   = " + minOff);
 
         // Check if product is within allowable window around the TOH AND
         // if the current product is closer to TOH than a previous product
@@ -377,8 +371,8 @@ public class DAAProductProcessor {
         }
 
         if (!withinTOHWindow) {
-            statusHandler.handle(Priority.DEBUG,
-                    "DAA product is not within window around TOH");
+
+            logger.info("DAA product is not within window around TOH");
         } else {
 
             // Check if product is closer to TOH than a previous product
@@ -393,16 +387,14 @@ public class DAAProductProcessor {
                     headerData.getRadarId(), obsTime, minOff);
 
             if (!closerToTOH) {
-                statusHandler
-                        .handle(Priority.INFO,
-                                "DAA product closer to TOH already processed -- current product not processed");
+                logger.info("DAA product closer to TOH already processed -- current product not processed");
             } else {
 
                 byte[] dataArray = record.getRawData();
 
                 if (dataArray == null) {
-                    statusHandler.handle(Priority.ERROR,
-                            "DAA Product: ERROR --- dataArray is null");
+
+                    logger.error("DAA Product: ERROR --- dataArray is null");
                 }
 
                 else {
@@ -614,9 +606,7 @@ public class DAAProductProcessor {
                 d.getBiasValue(), d.getProductGenerationTime(),
                 d.getNullProductFlag(), d.getCoverageDur(), fileName);
 
-        statusHandler
-                .handle(Priority.DEBUG,
-                        "In routine writeToDAARadarTable - finish to write to DAAradar table");
+        logger.debug("In routine writeToDAARadarTable - finish to write to DAAradar table");
 
     }
 
@@ -661,7 +651,8 @@ public class DAAProductProcessor {
         }
 
         catch (Exception e) {
-            statusHandler.handle(Priority.ERROR,
+
+            logger.error(
                     "Could not retrieve DAA radarrecord from DAARadar table.",
                     e);
         }
@@ -791,15 +782,15 @@ public class DAAProductProcessor {
 
             }
         } catch (Exception e) {
-            statusHandler.handle(Priority.ERROR,
-                    "Could not write out radial file.", e);
+
+            logger.error("Could not write out radial file.", e);
         } finally {
             if (writer != null) {
                 try {
                     writer.close();
                 } catch (Exception e) {
-                    statusHandler.handle(Priority.ERROR,
-                            "Could not close out radial file.", e);
+
+                    logger.error("Could not close out radial file.", e);
                 }
             }
         }
@@ -831,8 +822,7 @@ public class DAAProductProcessor {
 
         } catch (Exception e) {
 
-            statusHandler.handle(Priority.ERROR,
-                    "Could not write out Hrap grid file.", e);
+            logger.error("Could not write out Hrap grid file.", e);
         }
 
         finally {
@@ -840,8 +830,8 @@ public class DAAProductProcessor {
                 try {
                     writer.close();
                 } catch (Exception e) {
-                    statusHandler.handle(Priority.ERROR,
-                            "Could not close out Hrap grid file.");
+
+                    logger.error("Could not close out Hrap grid file.");
                 }
             }
         }
@@ -874,8 +864,7 @@ public class DAAProductProcessor {
 
         } catch (Exception e) {
 
-            statusHandler.handle(Priority.ERROR,
-                    "Could not write out Dba grid file.", e);
+            logger.error("Could not write out Dba grid file.", e);
         }
 
         finally {
@@ -883,8 +872,8 @@ public class DAAProductProcessor {
                 try {
                     writer.close();
                 } catch (Exception e) {
-                    statusHandler.handle(Priority.ERROR,
-                            "Could not close out Dba grid file.", e);
+
+                    logger.error("Could not close out Dba grid file.", e);
                 }
             }
         }
@@ -914,8 +903,7 @@ public class DAAProductProcessor {
 
         } catch (Exception e) {
 
-            statusHandler.handle(Priority.ERROR,
-                    "Could not write out polar grid file.", e);
+            logger.error("Could not write out polar grid file.", e);
         }
 
         finally {
@@ -923,8 +911,8 @@ public class DAAProductProcessor {
                 try {
                     writer.close();
                 } catch (Exception e) {
-                    statusHandler.handle(Priority.ERROR,
-                            "Could not close out polar grid file.", e);
+
+                    logger.error("Could not close out polar grid file.", e);
                 }
             }
         }
@@ -958,9 +946,8 @@ public class DAAProductProcessor {
 
         } catch (Exception e) {
 
-            statusHandler.handle(Priority.ERROR,
-                    "Could not write out decoded DAA product file -"
-                            + fullPathName, e);
+            logger.error("Could not write out decoded DAA product file -"
+                    + fullPathName, e);
         }
 
         finally {
@@ -968,7 +955,8 @@ public class DAAProductProcessor {
                 try {
                     outputStream.close();
                 } catch (IOException e) {
-                    statusHandler.handle(Priority.ERROR,
+
+                    logger.error(
                             "Could not close out decoded DAA product file - "
                                     + fullPathName, e);
                 }
@@ -1001,14 +989,13 @@ public class DAAProductProcessor {
             dao.saveOrUpdate(radarObject);
 
         } catch (Exception e) {
-            statusHandler.handle(Priority.ERROR,
-                    "Can not save/update DAARadar table.", e);
-            statusHandler.handle(Priority.ERROR, "radar id  = " + radid
-                    + " obstime = " + obstime + " minOff = " + minOff
-                    + " maxVald = " + maxVald + " s1BiasValue = " + s1BiasValue
-                    + "\nproductTime = " + productTime + " nullProductFlag = "
-                    + nullProductFlag + "coverageDur = " + coverageDur
-                    + " gridFilename = " + gridFilename);
+            logger.error("Can not save/update DAARadar table.", e);
+            logger.error("radar id  = " + radid + " obstime = " + obstime
+                    + " minOff = " + minOff + " maxVald = " + maxVald
+                    + " s1BiasValue = " + s1BiasValue + "\nproductTime = "
+                    + productTime + " nullProductFlag = " + nullProductFlag
+                    + "coverageDur = " + coverageDur + " gridFilename = "
+                    + gridFilename);
 
         }
 
