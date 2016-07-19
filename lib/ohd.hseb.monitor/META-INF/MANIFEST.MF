@@ -2,19 +2,20 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Monitor Plug-in
 Bundle-SymbolicName: ohd.hseb.monitor;singleton:=true
-Bundle-Version: 1.0.0.qualifier
+Bundle-Version: 1.16.0.qualifier
 Bundle-Activator: com.raytheon.monitor.activator.Activator
 Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
  com.raytheon.viz.core,
  ohd.hseb.common,
  ohd.hseb.ihfsdb,
- org.postgres
+ org.postgres,
+ com.raytheon.uf.common.xmrg;bundle-version="1.16.0"
 Bundle-ActivationPolicy: lazy
 Export-Package: com.raytheon.monitor.activator,
  com.raytheon.monitor.preferences,
  ohd.hseb.monitor
-Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Bundle-RequiredExecutionEnvironment: JavaSE-1.7
 Import-Package: com.raytheon.uf.common.mpe.util,
  com.raytheon.uf.common.ohd,
  com.raytheon.viz.hydrocommon,
