@@ -31,7 +31,7 @@ import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
 
 import com.raytheon.uf.common.ohd.AppsDefaults;
-import com.raytheon.uf.common.mpe.util.XmrgFile;
+import com.raytheon.uf.common.xmrg.XmrgFile;
 
 
 public class PrecipDataManager {
