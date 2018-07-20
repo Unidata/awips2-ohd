@@ -5,6 +5,8 @@ test-bin/
 testbin/
 testBin/
 bin-test/
+classes
+.gitignore
 *.class
 *.pyo
 *.o
