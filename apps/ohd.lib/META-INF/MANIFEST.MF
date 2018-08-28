@@ -329,4 +329,4 @@ Export-Package: ChartDirector,
  ucar.units,
  ucar.util.prefs,
  ucar.util.prefs.ui
-Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8

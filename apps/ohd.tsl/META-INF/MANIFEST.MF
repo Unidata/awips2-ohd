@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: Tsl
 Bundle-SymbolicName: ohd.tsl
 Bundle-Version: 1.0.0.qualifier
-Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Require-Bundle: ohd.common;bundle-version="1.0.0",
  ohd.db;bundle-version="1.0.0",
  ohd.pdc_pp;bundle-version="1.0.0",

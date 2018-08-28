@@ -15,7 +15,7 @@ Bundle-ActivationPolicy: lazy
 Export-Package: com.raytheon.monitor.activator,
  com.raytheon.monitor.preferences,
  ohd.hseb.monitor
-Bundle-RequiredExecutionEnvironment: JavaSE-1.7
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Import-Package: com.raytheon.uf.common.mpe.util,
  com.raytheon.uf.common.ohd,
  com.raytheon.viz.hydrocommon,

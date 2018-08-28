@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: Rivermonitor
 Bundle-SymbolicName: ohd.rivermonitor
 Bundle-Version: 1.0.0.qualifier
-Bundle-RequiredExecutionEnvironment: JavaSE-1.6
+Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Require-Bundle: ohd.common;bundle-version="1.0.0",
  ohd.db;bundle-version="1.0.0",
  ohd.tsl;bundle-version="1.0.0",
